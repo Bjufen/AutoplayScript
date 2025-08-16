@@ -4,32 +4,40 @@
 // @version         0.1
 // @description     Autoplayer for https://iwatchsouthparkonline.cc
 // @match           *://*.iwatchsouthparkonline.cc/*
+// @match           *://vidmoly.net/*
+// @match           *://*.vidmoly.net/*
 // @grant           none
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    // We'll wait a moment for the page and player to fully load before running our code.
-    // This helps ensure the video element exists when we try to find it.
-    setTimeout(findAndSetupVideoPlayer, 2000); // Wait 2 seconds (2000 milliseconds)
-
-    function findAndSetupVideoPlayer() {
+    // This function will try to find the video player.
+    // We use setInterval to repeatedly check until the player is loaded.
+    const findVideoInterval = setInterval(() => {
         // --- 1. FIND THE VIDEO ELEMENT ---
-        // Use the class selector we identified.
+        // The selector is correct for the JW Player.
         const videoPlayer = document.querySelector('video.jw-video');
 
-        if (!videoPlayer) {
-            console.log('Vidmoly Helper: Video player not found on the page. Script will not run.');
-            return; // Exit the function if no video is found
+        // If the player is found, we can set it up.
+        if (videoPlayer) {
+            // Stop checking for the video player once we've found it.
+            clearInterval(findVideoInterval);
+            console.log('Autoplayer: Video player found!', videoPlayer);
+            setupVideoPlayer(videoPlayer);
+        } else {
+            console.log('Autoplayer: Searching for video player...');
         }
+    }, 1000); // Check every 1 second (1000 milliseconds)
 
-        console.log('Vidmoly Helper: Video player found!', videoPlayer);
-
+    // This function sets up all the event listeners and buttons.
+    function setupVideoPlayer(videoPlayer) {
         // --- 2. DETECT WHEN THE VIDEO ENDS ---
         videoPlayer.addEventListener('ended', () => {
-            console.log('Vidmoly Helper: Video has finished playing!');
-            alert('The video has ended!'); // An alert is an easy way to see it work.
+            console.log('Autoplayer: Video has finished playing!');
+            // You can add code here to automatically go to the next episode,
+            // but for now, an alert is a good test.
+            alert('The video has ended!');
         });
 
         // --- 3. CREATE A FULLSCREEN TOGGLE BUTTON ---
@@ -42,37 +50,37 @@
             position: 'fixed',    // Keep it in a fixed position on the screen
             bottom: '10px',       // 10px from the bottom
             right: '10px',        // 10px from the right
-            zIndex: '9999',       // Make sure it's on top of other elements
-            padding: '10px',
-            backgroundColor: '#007bff',
+            zIndex: '99999',      // Make sure it's on top of all other elements
+            padding: '10px 15px',
+            backgroundColor: '#1E90FF', // A nice blue color
             color: 'white',
             border: 'none',
             borderRadius: '5px',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            fontSize: '14px',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.2)' // Add a subtle shadow
         });
 
         // Add the button to the webpage's body
         document.body.appendChild(fullscreenButton);
 
-
         // --- 4. ADD FUNCTIONALITY TO THE BUTTON ---
         fullscreenButton.addEventListener('click', () => {
             toggleFullscreen(videoPlayer);
         });
-
     }
 
     // This function handles the logic for entering and exiting fullscreen
     function toggleFullscreen(element) {
         if (!document.fullscreenElement) {
             // If not in fullscreen, request it for the video player element
-            console.log('Vidmoly Helper: Entering fullscreen.');
+            console.log('Autoplayer: Entering fullscreen.');
             element.requestFullscreen().catch(err => {
                 console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
             });
         } else {
             // If already in fullscreen, exit
-            console.log('Vidmoly Helper: Exiting fullscreen.');
+            console.log('Autoplayer: Exiting fullscreen.');
             document.exitFullscreen();
         }
     }
