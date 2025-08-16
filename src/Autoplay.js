@@ -7,6 +7,7 @@
 // @match           *://vidmoly.net/*
 // @match           *://*.vidmoly.net/*
 // @grant           none
+// @license         MIT
 // ==/UserScript==
 
 (function() {
