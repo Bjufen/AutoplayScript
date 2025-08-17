@@ -5,4 +5,5 @@ I bear no responsibility for any damages caused by this script, so use at own ri
 
 
 PS: For the autoplay function to work, you need to allow the site to autoplay sound and video, otherwise it will not work as intended.
+
 PPS: It seems I am running into difficulty with restoring fullscreen. It looks to be a browser security restriction. If anyone finds a workaround I would love to hear about it!
