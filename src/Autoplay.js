@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            Autoplayer
 // @namespace       https://github.com/Bjufen
-// @version         1.0
+// @version         1.1
 // @description     Autoplayer for https://iwatchsouthparkonline.cc
 // @match           *://*.iwatchsouthparkonline.cc/episode/*
 // @match           *://*.watchitsalwayssunnyinphiladelphia.cc/episode/*
@@ -69,6 +69,22 @@
             try {
                 console.log('Autoplayer (Iframe): Attempting to start video playback');
                 video.play();
+
+                const shouldRestoreFullscreen = GM_getValue('wasFullscreen', false);
+                if (shouldRestoreFullscreen) {
+                    console.log('Autoplayer (Iframe): Attempting to restore fullscreen mode.');
+                    const fullscreenTarget = video.closest('.jwplayer') || video;
+
+                    fullscreenTarget.requestFullscreen()
+                        .then(() => {
+                            console.log('Autoplayer (Iframe): Fullscreen mode entered successfully.');
+                        })
+                        .catch(err => {
+                            console.error(`Autoplayer (Iframe): Fullscreen request was denied. Reason: ${err.message}`);
+                        });
+                }
+                // Always reset the flag so it doesn't affect the next manual navigation.
+                GM_setValue('wasFullscreen', false);
             } catch (e) {
                 console.error('Autoplayer (Iframe): Error starting the video:', e);
             }
@@ -172,6 +188,15 @@
 
         const handleVideoEnd = () => {
             console.log('Autoplayer (Main): Received "videoHasEnded" message from iframe.');
+            if (!isAutoPlayEnabled) {
+                console.log('Autoplayer (Main): Autoplay is disabled, not proceeding.');
+                return;
+            }
+
+            const wasFullscreen = !!document.fullscreenElement;
+            console.log(`Autoplayer (Main): Was in fullscreen mode? ${wasFullscreen}`);
+            GM_setValue('wasFullscreen', wasFullscreen);
+
             if (isRandomEnabled) {
                 try {
                     const randomButton = document.querySelector('a.random_ep');
