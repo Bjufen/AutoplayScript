@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            Autoplayer
 // @namespace       https://github.com/Bjufen
-// @version         1.1
+// @version         1.3
 // @description     Autoplayer for https://iwatchsouthparkonline.cc
 // @match           *://*.iwatchsouthparkonline.cc/episode/*
 // @match           *://*.watchitsalwayssunnyinphiladelphia.cc/episode/*
@@ -42,13 +42,15 @@
 
 (function () {
     'use strict';
-
+    const STORAGE_KEY_OFFSET = 'triggerOffset';
     const STORAGE_KEY_RANDOM = 'isRandomEnabled';
     const STORAGE_KEY_AUTOPLAY = 'isAutoPlayEnabled';
 
     const isInsideIframe = (window.self !== window.top);
 
     if (isInsideIframe) {
+
+        const STORAGE_KEY_OFFSET = 'triggerOffset';
         let findVideoInterval = null;
         let videoPlayerElement = null;
 
@@ -63,8 +65,33 @@
         const setupVideoPlayer = (video) => {
             console.log('Autoplayer (Iframe): Video player found!', video);
             videoPlayerElement = video;
+
+            let endMessageSent = false;
+            console.log(`Autoplayer (Iframe): Trigger offset is ${GM_getValue(STORAGE_KEY_OFFSET, 0)}s.`);
+
+            const onTimeUpdate = () => {
+                if (GM_getValue(STORAGE_KEY_OFFSET, 0) <= 0) return;
+
+                if (video.duration && !endMessageSent) {
+                    if ((video.duration - video.currentTime) <= GM_getValue(STORAGE_KEY_OFFSET, 0)) {
+                        endMessageSent = true;
+                        console.log(`Autoplayer (Iframe): Triggering next episode ${GM_getValue(STORAGE_KEY_OFFSET, 0)}s before end.`);
+                        window.parent.postMessage('videoHasEnded', '*');
+                    }
+                }
+            };
+
+            const onVideoEnded = () => {
+                if (!endMessageSent) {
+                    endMessageSent = true;
+                    console.log('Autoplayer (Iframe): Video ended. Sending message to parent page.');
+                    window.parent.postMessage('videoHasEnded', '*');
+                }
+            };
+
+            videoPlayerElement.addEventListener('timeupdate', onTimeUpdate);
             videoPlayerElement.addEventListener('ended', onVideoEnded);
-            console.log('Autoplayer (Iframe): Event listener attached.');
+            console.log('Autoplayer (Iframe): Event listeners for timeupdate and ended attached.');
 
             try {
                 console.log('Autoplayer (Iframe): Attempting to start video playback');
@@ -83,7 +110,6 @@
                             console.error(`Autoplayer (Iframe): Fullscreen request was denied. Reason: ${err.message}`);
                         });
                 }
-                // Always reset the flag so it doesn't affect the next manual navigation.
                 GM_setValue('wasFullscreen', false);
             } catch (e) {
                 console.error('Autoplayer (Iframe): Error starting the video:', e);
@@ -131,6 +157,7 @@
         let isRandomEnabled = GM_getValue(STORAGE_KEY_RANDOM, false);
         let isAutoPlayEnabled = GM_getValue(STORAGE_KEY_AUTOPLAY, true);
         let iframeIsReady = false;
+        const offsetLabel = '⏰ Set Trigger Offset...';
 
         const sendCommandToIframe = (command) => {
             const iframe = document.querySelector('iframe');
@@ -142,12 +169,30 @@
             }
         };
 
+        const setTriggerOffset = () => {
+            const currentOffset = GM_getValue(STORAGE_KEY_OFFSET, 0);
+            const newOffsetInput = prompt(
+                'Enter seconds before video end to trigger next episode. Use 0 to trigger at the very end.',
+                currentOffset
+            );
+
+            if (newOffsetInput !== null) {
+                const newOffset = parseInt(newOffsetInput, 10);
+                if (!isNaN(newOffset) && newOffset >= 0) {
+                    GM_setValue(STORAGE_KEY_OFFSET, newOffset);
+                    console.log(`Autoplayer (Main): Trigger offset saved as ${newOffset}s.`);
+                } else {
+                    alert('Invalid input. Please enter a positive number or 0.');
+                }
+            }
+        };
         const updateAllMenuCommands = (firstRun = false) => {
             if (!firstRun) {
                 GM_unregisterMenuCommand('✅ Autoplay Enabled');
                 GM_unregisterMenuCommand('❌ Autoplay Disabled');
                 GM_unregisterMenuCommand('▶️ Next Episode');
                 GM_unregisterMenuCommand('🔀 Random Episode');
+                GM_unregisterMenuCommand(offsetLabel);
             }
 
             const autoPlayLabel = isAutoPlayEnabled ? '✅ Autoplay Enabled' : '❌ Autoplay Disabled';
@@ -155,6 +200,8 @@
 
             const randomLabel = isRandomEnabled ? '🔀 Random Episode' : '▶️ Next Episode';
             GM_registerMenuCommand(randomLabel, toggleRandomState);
+
+            GM_registerMenuCommand(offsetLabel, setTriggerOffset);
         };
 
         const toggleRandomState = () => {
